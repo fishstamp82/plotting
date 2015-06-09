@@ -3,6 +3,65 @@
 import re, os, sys
 import numpy as np
 
+def get_E( ofiles, E):
+
+    pat = re.compile(r'Excitation energy :')
+    for i in range(len( ofiles )):
+        tmp = []
+        for j in open(ofiles[i]).readlines():
+            if pat.search(j):
+                tmp.append( float(j[22:37] ) )
+        if len(tmp) != len(E):
+            print 'File %s has wrong number of roots' %ofiles[i]
+            print 'fler rotter hittade';raise SystemExit
+        for j in range(len(tmp)):
+            E[j][i] = tmp[j]
+    return E
+
+def get_f( ofiles, f):
+
+    pat = re.compile(r'Oscillator strength ')
+    for i in range(len( ofiles )):
+        tmp = []
+        for j in open(ofiles[i]).readlines():
+            if pat.search(j):
+                tmp.append( float(j.split()[9] ) )
+        if len(tmp) != 3*len(f):
+            print 'File %s has wrong number of roots' %ofiles[i]
+            print 'fler rotter hittade';raise SystemExit
+
+        for j in range(len(tmp)):
+            if j%3 == 0:
+                f[j%8][i][0] = tmp[j]
+            if j%3 == 1:
+                f[j%8][i][1] = tmp[j]
+            if j%3 == 2:
+                f[j%8][i][2] = tmp[j]
+    return f
+
+
+def get_d( ofiles, d):
+    pat = re.compile(r'STATE NO: +')
+    for i in range(len( ofiles )):
+        tmp = []
+        for j in open(ofiles[i]).readlines():
+            if pat.search(j):
+                tmp.append( float(j.split()[6] ) )
+        if len(tmp) != 3*len(d):
+            print 'File %s has wrong number of roots' %ofiles[i]
+            print 'fler rotter hittade';raise SystemExit
+
+        for j in range(len(tmp)):
+            if j%3 == 0:
+                d[j%8][i][0] = tmp[j]
+            if j%3 == 1:
+                d[j%8][i][1] = tmp[j]
+            if j%3 == 2:
+                d[j%8][i][2] = tmp[j]
+    return d
+
+
+
 def run_argparse( ):
     import argparse
     A1 = argparse.ArgumentParser(add_help=False)

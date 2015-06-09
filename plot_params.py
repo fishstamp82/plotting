@@ -6,16 +6,17 @@ from matplotlib import pyplot as plt
 import numpy as np
 from read_dal import o_filter, read_beta_hf
 from molecules import *
-import pandas as pd
+from utilz import *
 
+from pd.particles import *
 from pd.gaussian import *
+from pd.thole import *
 
 a0 = 0.52917721092
 
 class MyBoolAction( argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         super(MyBoolAction, self).__init__(option_strings, dest, **kwargs)
-
     def __call__(self, parser, namespace, values, option_string=None):
         print values
         mod = values
@@ -130,7 +131,7 @@ def run_mpl_2(
 
     ind_map =  dict( r = 0, tau = 1, theta = 2, rho1 = 3, rho2 = 4, rho3 = 5 )
     comp_map =  dict( x=0, y =1, z = 2)
-    comp_map_beta =  dict( x=2, y =7, z = 9)
+    comp_map_beta =  dict( xxz=2, yyz =7, zzz = 9)
     prop_map =  dict( d =0, a = 1, b = 2)
     level_map =  {"0" : 0, "1" : 1, "2" : 2 }
 
@@ -144,7 +145,7 @@ def run_mpl_2(
     fig, ax = plt.subplots()
     fig.subplots_adjust(right = 0.65 )
     x_lab = '$' + to_latex(x_label) + '$'
-    for ind1, (yd, c, p, l, lop, f, max_l, rq, rp) in enumerate(itertools.product( y_dims, comps, props, levels, loprop, freqs,max_ls,  Rqs, Rps )):
+    for ind1, (yd, c, p, l, lop, f, max_l, model, rq, rp) in enumerate(itertools.product( y_dims, comps, props, levels, loprop, freqs,max_ls, models, Rqs, Rps )):
         y_lab = y_label
         x = []
         y = []
@@ -169,15 +170,11 @@ def run_mpl_2(
                     loprop = lop == 1,
                     freq = f )
             clus.set_qm_mm(5)
-            #print fname
-            #print clus.sum_property['beta'][ comp_map_beta[c] ]
-            #print Rotator.square_3_ut(g.beta())[ comp_map_beta[c] ]
-            #print Rotator.square_3_ut(beta_qm) [ comp_map_beta[c] ]
-            #print '------------'
-#Plot only dipole for level 0
+
             if l == 0:
-                g = GaussianQuadrupoleList.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 0, hyp = 0) )
-                g.set_damping( rq, rp )
+                g = model.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 0, hyp = 0) )
+                if isinstance( g, GaussianQuadrupoleList ):
+                    g.set_damping( rq, rp )
                 g.solve_scf()
                 if p == 'd':
                     cl = g.total_dipole_moment()
@@ -194,8 +191,9 @@ def run_mpl_2(
                         y.append( ((clus.p - qm )/qm) [ comp_map[c]] )
 #Plot only dipole and alpha for level 1
             if l == 1:
-                g = GaussianQuadrupoleList.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 2, hyp = 0) )
-                g.set_damping( rq, rp )
+                g = model.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 2, hyp = 0) )
+                if isinstance( g, GaussianQuadrupoleList ):
+                    g.set_damping( rq, rp )
                 g.solve_scf()
                 if p == 'd':
                     cl = g.total_dipole_moment()
@@ -214,7 +212,7 @@ def run_mpl_2(
                     cl = g.alpha().diagonal()
                     qm = np.einsum('ii->i', alpha_qm )
                     if yd == "abs_none":
-                        y.append( Rotator.ut_2_square(clus.sum_property['alpha']).diagonal()[ comp_map[c]] )
+                        y.append( ut2s(clus.p['alpha']).diagonal()[ comp_map[c]] )
                     elif yd == "abs_qm":
                         y.append( qm[ comp_map[c]] )
                     elif yd == "abs_cl":
@@ -222,11 +220,12 @@ def run_mpl_2(
                     elif yd == "rel_cl_qm":
                         y.append( ((cl - qm )/qm) [ comp_map[c]] )
                     elif yd == "rel_none_qm":
-                        y.append( ((Rotator.ut_2_square(clus.sum_property['alpha']).diagonal() - qm )/qm) [ comp_map[c]] )
+                        y.append( ((ut2s(clus.p['alpha']).diagonal() - qm )/qm) [ comp_map[c]] )
 #plot all comps for level 2 
             if l == 2:
-                g = GaussianQuadrupoleList.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 22, hyp = 1) )
-                g.set_damping( rq, rp )
+                g = model.from_string( clus.get_qmmm_pot_string( max_l = max_l, pol = 22, hyp = 1) )
+                if isinstance( g, GaussianQuadrupoleList ):
+                    g.set_damping( rq, rp )
                 g.solve_scf()
                 if p == 'd':
                     cl = g.total_dipole_moment()
@@ -245,7 +244,7 @@ def run_mpl_2(
                     cl = g.alpha().diagonal()
                     qm = np.einsum('ii->i', alpha_qm )
                     if yd == "abs_none":
-                        y.append( Rotator.ut_2_square(clus.sum_property[ 'alpha' ]).diagonal()[comp_map[c]] )
+                        y.append( ut2s(clus.p[ 'alpha' ]).diagonal()[comp_map[c]] )
                     elif yd == "abs_qm":
                         y.append( qm[ comp_map[c]] )
                     elif yd == "abs_cl":
@@ -253,20 +252,20 @@ def run_mpl_2(
                     elif yd == "rel_cl_qm":
                         y.append( ((cl - qm )/qm) [ comp_map[c]] )
                     elif yd == "rel_none_qm":
-                        y.append( Rotator.ut_2_square(((clus.sum_property['alpha'] - qm )/qm)) [ comp_map[c]] )
+                        y.append( ut2s(((clus.p['alpha'] - qm )/qm)) [ comp_map[c]] )
                 if p == 'b':
-                    cl = Rotator.square_3_ut( g.beta() )
-                    qm = Rotator.square_3_ut( beta_qm )
+                    cl = s2ut( g.beta() )
+                    qm_b = s2ut( beta_qm )
                     if yd == "abs_none":
-                        y.append( clus.sum_property[ 'beta' ][comp_map_beta[c]] )
-                    elif yd == "abs_qm":
-                        y.append( qm[ comp_map_beta[c]] )
+                        y.append( clus.p[ 'beta' ][comp_map_beta[c]] )
+                    elif yd == "abs_qm_b":
+                        y.append( qm_b[ comp_map_beta[c]] )
                     elif yd == "abs_cl":
                         y.append( cl[ comp_map_beta[c]] )
-                    elif yd == "rel_cl_qm":
-                        y.append( ((cl - qm )/qm) [ comp_map_beta[c]] )
-                    elif yd == "rel_none_qm":
-                        y.append( ((clus.sum_property['beta'] - qm )/qm) [ comp_map_beta[c]] )
+                    elif yd == "rel_cl_qm_b":
+                        y.append( ((cl - qm_b )/qm_b) [ comp_map_beta[c]] )
+                    elif yd == "rel_none_qm_b":
+                        y.append( ((clus.p.b - qm_b )/qm_b) [ comp_map_beta[c]] )
         if y == []:
             continue
 
