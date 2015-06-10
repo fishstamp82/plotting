@@ -129,6 +129,9 @@ def run_mpl_2(
     comps = map( lambda x: x.lower(), comps )
     props = map( lambda x: x.lower(), props )
 
+    models_dict = { 'gaussian' : GaussianQuadrupoleList,
+            'thole' : TholeList }
+    models = [ models_dict[key] for key in models ]
     ind_map =  dict( r = 0, tau = 1, theta = 2, rho1 = 3, rho2 = 4, rho3 = 5 )
     comp_map =  dict( x=0, y =1, z = 2)
     comp_map_beta =  dict( xxz=2, yyz =7, zzz = 9)
